@@ -48,6 +48,17 @@
    }
    ```
 3. ウェブアプリを登録し、`firebaseConfig` を `firebase-config.js` の `window.FIREBASE_CONFIG` に貼る。
-4. 大会を区切る合言葉は `sync.js` の `ROOM` で変更可能。
+4. 大会を区切る合言葉（room）は、本部ホームとコート端末（大会用）で同じ文字列を入れる。大会ごとに変えれば別々のダッシュボードになる。
 
 ※ Firebase のウェブ設定キーはクライアント公開前提のもので秘密情報ではない。保護は Realtime Database のルールで行う。
+
+## PWA（ホーム画面追加・オフライン）
+
+court.html / hq.html はそれぞれ別アプリとしてインストールできる（manifest を2つ用意）。
+
+- 得点カウンター: `manifest-court.webmanifest`（アイコン緑）
+- 本部ダッシュボード: `manifest-hq.webmanifest`（アイコン ダーク×アンバー）
+- Service Worker `sw.js` がアプリ一式（HTML/JS/アイコン/manifest）をキャッシュ。練習用はオフラインでも動く。Firebase 等の外部通信はキャッシュせずネットワークへ流す（同期は要ネット）。
+
+★更新時の注意: court.html / hq.html / sync.js などを更新したら、`sw.js` の `CACHE` のバージョン番号を必ず上げる（`bdmt-tourney-v1` → `v2` …）。上げ忘れると利用者端末に古い版がキャッシュされ続ける。
+更新フロー: 編集 → sw.js のバージョンUP → commit → git pull --rebase → git push。

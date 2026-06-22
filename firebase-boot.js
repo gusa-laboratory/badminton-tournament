@@ -32,3 +32,8 @@ async function boot() {
 }
 
 boot();
+
+// PWA: Service Worker 登録（ホーム画面追加・オフライン対応）
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(e => console.warn("SW登録失敗", e));
+}
