@@ -12,6 +12,7 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;}
+  .hidden{display:none !important;}
   body{
     background:var(--bg); color:var(--txt); min-height:100vh;
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
@@ -74,6 +75,8 @@
   .recent{display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer;}
   .recent:hover{border-color:var(--accent);}
   .recent .rn{font-weight:700;} .recent .rr{font-size:12px; color:var(--muted);}
+  .clearbtn{margin-top:6px; background:none; border:1px solid var(--line); color:#d98b8b; border-radius:10px; padding:8px 12px; font-size:13px; cursor:pointer;}
+  .clearbtn:hover{border-color:#d98b8b;}
   #switchBtn{background:#37485c; border:none; color:#fff; border-radius:9px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer; margin-left:auto;}
   .warn{color:#ef9a9a; font-size:12px; margin:10px 0 0; line-height:1.5;}
 </style>
@@ -91,6 +94,7 @@
       <button id="openBtn">この大会を開く</button>
     </div>
     <div id="recents"></div>
+    <button id="clearRecents" class="clearbtn hidden">🗑 大会の履歴を消去</button>
   </div>
 
   <!-- DASHBOARD（試合の経過だけを表示） -->
@@ -214,6 +218,7 @@ function saveRecent(name, room){
 }
 function renderRecents(){
   const r = loadRecents();
+  $('clearRecents').classList.toggle('hidden', r.length===0);
   if(!r.length){ $('recents').innerHTML=''; return; }
   $('recents').innerHTML = '<h3>最近の大会</h3>' + r.map(x=>
     `<div class="recent" data-room="${encodeURIComponent(x.room)}" data-name="${encodeURIComponent(x.name||'')}">
@@ -266,6 +271,12 @@ $('openBtn').onclick=()=>{
   openDashboard(room, $('inName').value.trim());
 };
 $('switchBtn').onclick=()=>{ location.href = location.pathname; };
+$('clearRecents').onclick=()=>{
+  if(confirm('「最近の大会」の履歴をすべて消去しますか？\n（各コートのスコア自体は消えません。この一覧から消えるだけです）')){
+    localStorage.removeItem(RECENTS_KEY);
+    renderRecents();
+  }
+};
 setInterval(render, 1000);   // 「更新○秒前」を毎秒更新
 </script>
 <script type="module" src="firebase-boot.js"></script>
