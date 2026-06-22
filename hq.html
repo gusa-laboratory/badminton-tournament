@@ -86,7 +86,6 @@
       <label>合言葉（room）</label>
       <input type="text" id="inRoom" placeholder="例：ojg-spring-2026">
       <button id="openBtn">この大会を開く</button>
-      <p class="warn hidden" id="fbWarn">※ Firebase未設定のため、ローカル同期（同一ブラウザのタブ間）で動作します。</p>
     </div>
     <div id="recents"></div>
   </div>
@@ -243,8 +242,6 @@ function showHome(){
   $('dash').classList.add('hidden');
   $('home').classList.remove('hidden');
   renderRecents();
-  // Firebase設定そのものが無いときだけ注意を出す（接続可否はダッシュボードの表示で示す）
-  if(!window.FIREBASE_CONFIG) $('fbWarn').classList.remove('hidden');
 }
 
 const params = new URLSearchParams(location.search);
