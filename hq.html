@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>本部ダッシュボード｜バドミントン大会</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212e; --panel2:#1b2735; --line:#243446;
+    --txt:#f1f5f9; --muted:#90a4b8; --accent:#ffb300; --ok:#43a047;
+    --a:#64b5f6; --b:#ef9a9a; --live:#43a047; --done:#7e96ac;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--bg); color:var(--txt); min-height:100vh;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    padding:18px 18px 60px;
+  }
+  header{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px;}
+  header h1{font-size:22px; margin:0;}
+  header .room{font-size:12px; color:var(--muted);}
+  .bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:12px; margin-bottom:18px;}
+  .mode{padding:2px 9px; border-radius:20px; background:#23303f; color:var(--accent); font-weight:700;}
+  .count{padding:2px 9px; border-radius:20px; background:#1c2836;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px;}
+  .empty{color:var(--muted); font-size:14px; padding:40px 10px; text-align:center; border:1px dashed var(--line); border-radius:14px;}
+
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px 16px; position:relative; overflow:hidden;}
+  .card.done{opacity:.82;}
+  .card .ctop{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;}
+  .court{font-size:13px; color:var(--muted);}
+  .court b{font-size:26px; color:var(--txt); margin-right:4px; font-variant-numeric:tabular-nums;}
+  .matchno{font-size:13px; color:var(--accent); font-weight:700;}
+  .status{font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px; white-space:nowrap;}
+  .status.live{background:rgba(67,160,71,.18); color:#7bd389; border:1px solid rgba(67,160,71,.5);}
+  .status.done{background:#26323f; color:var(--done); border:1px solid var(--line);}
+  .status.live::before{content:"● "; color:var(--live);}
+
+  .row{display:grid; grid-template-columns:1fr auto; align-items:center; gap:8px; padding:7px 0;}
+  .row + .row{border-top:1px solid var(--line);}
+  .who{min-width:0;}
+  .nm{font-size:16px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .sb{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .sc{font-size:34px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; min-width:46px; text-align:right;}
+  .row.win .nm{color:var(--accent);}
+  .serve{color:var(--accent); font-size:13px; margin-left:6px;}
+  .pt{font-size:10px; font-weight:800; padding:1px 7px; border-radius:10px; margin-left:6px; vertical-align:middle;}
+  .pt.game{background:#ef6c00; color:#fff;} .pt.match{background:#c62828; color:#fff;}
+
+  .cfoot{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:11px; font-size:12px; color:var(--muted);}
+  .games{display:flex; gap:6px; align-items:center;}
+  .gc{background:#1c2836; padding:2px 9px; border-radius:20px; font-weight:700; color:var(--txt);}
+  .past{display:flex; gap:5px; flex-wrap:wrap;}
+  .past span{background:#11202e; padding:1px 7px; border-radius:6px; font-size:11px;}
+  .upd{white-space:nowrap;}
+  .upd.stale{color:#d98b8b;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>🏸 本部ダッシュボード</h1>
+    <span class="room" id="room"></span>
+  </header>
+  <div class="bar">
+    <span class="mode" id="syncMode"></span>
+    <span class="count" id="count">0 コート</span>
+    <span id="hint"></span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+<script src="firebase-config.js"></script>
+<script src="sync.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* --- ゲーム/マッチポイント判定（court.html と同じロジック） --- */
+function targetScore(mode){ return mode===15 ? 15 : 21; }
+function cap(mode){ return mode===15 ? 21 : 30; }
+function isGameWon(a,b,mode){
+  if(a>=cap(mode)) return true;
+  if(a>=targetScore(mode) && a-b>=2) return true;
+  return false;
+}
+// side: 'A'|'B' があと1点でゲームを取れるか
+function pointAway(m, side){
+  const a = side==='A' ? m.scoreA : m.scoreB;
+  const b = side==='A' ? m.scoreB : m.scoreA;
+  return isGameWon(a+1, b, m.mode);
+}
+
+function relTime(ms){
+  const d = Math.max(0, Math.floor((Date.now()-ms)/1000));
+  if(d<5)  return '今';
+  if(d<60) return d+'秒前';
+  const mn = Math.floor(d/60);
+  if(mn<60) return mn+'分前';
+  return Math.floor(mn/60)+'時間前';
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function sideRow(m, side){
+  const isA = side==='A';
+  const score = isA ? m.scoreA : m.scoreB;
+  const info  = isA ? m.a : m.b;
+  const isWinner = m.status==='終了' && m.winner===side;
+  const serving = m.serving===side;
+  // point badge（終了時は出さない）
+  let ptBadge = '';
+  if(m.status!=='終了' && pointAway(m, side)){
+    const isMatch = (isA ? m.gamesWon[0] : m.gamesWon[1]) === 1;
+    ptBadge = `<span class="pt ${isMatch?'match':'game'}">${isMatch?'マッチP':'ゲームP'}</span>`;
+  }
+  return `
+    <div class="row ${isWinner?'win':''}">
+      <div class="who">
+        <div class="nm">${esc(info.name)||(isA?'Aサイド':'Bサイド')}${serving?'<span class="serve">🏸</span>':''}${ptBadge}</div>
+        ${info.sub ? `<div class="sb">${esc(info.sub)}</div>` : ''}
+      </div>
+      <div class="sc">${score}</div>
+    </div>`;
+}
+
+function card(m){
+  const done = m.status==='終了';
+  const modeLabel = (m.mode===15?'15点':'21点') + '・' + (m.type==='doubles'?'ダブルス':'シングルス');
+  const past = (m.pastGames&&m.pastGames.length)
+    ? `<div class="past">${m.pastGames.map(g=>`<span>${g[0]}-${g[1]}</span>`).join('')}</div>` : '';
+  const stale = (Date.now()-m.updatedAt) > 30000;
+  return `
+    <div class="card ${done?'done':''}">
+      <div class="ctop">
+        <div>
+          <span class="court"><b>${esc(m.court)}</b>コート</span>
+          ${m.matchNo?`<span class="matchno">${esc(m.matchNo)}</span>`:''}
+        </div>
+        <span class="status ${done?'done':'live'}">${done?'終了':'進行中'}</span>
+      </div>
+      ${sideRow(m,'A')}
+      ${sideRow(m,'B')}
+      <div class="cfoot">
+        <span class="games"><span class="gc">ゲーム ${m.gamesWon[0]}-${m.gamesWon[1]}</span> ${past} <span style="color:#56708a">${modeLabel}</span></span>
+        <span class="upd ${stale?'stale':''}">更新 ${relTime(m.updatedAt)}</span>
+      </div>
+    </div>`;
+}
+
+let current = {};
+function render(){
+  const ids = Object.keys(current);
+  $('count').textContent = ids.length + ' コート';
+  if(!ids.length){
+    $('grid').innerHTML = `<div class="empty">まだ送信されているコートはありません。<br>各コート端末で「コート番号」を入れて試合を開始すると、ここに表示されます。</div>`;
+    return;
+  }
+  // コート番号で並べ替え（数値優先）
+  ids.sort((x,y)=>{
+    const nx=parseInt(current[x].court,10), ny=parseInt(current[y].court,10);
+    if(!isNaN(nx)&&!isNaN(ny)) return nx-ny;
+    return String(current[x].court).localeCompare(String(current[y].court));
+  });
+  $('grid').innerHTML = ids.map(id=>card(current[id])).join('');
+}
+
+/* --- 同期購読（接続準備ができてから） --- */
+window.addEventListener('sync-ready', ()=>{
+  $('room').textContent = 'room: ' + CourtSync.room;
+  $('syncMode').textContent = CourtSync.mode==='firebase' ? 'Firebase 同期' : 'ローカル同期';
+  $('hint').textContent = CourtSync.mode==='firebase'
+    ? ''
+    : '※ いまは同一ブラウザ内のタブ間で同期するデモモードです。';
+  CourtSync.subscribe(store=>{ current = store || {}; render(); });
+});
+setInterval(render, 1000);   // 「更新○秒前」を毎秒更新
+</script>
+<script type="module" src="firebase-boot.js"></script>
+</body>
+</html>
