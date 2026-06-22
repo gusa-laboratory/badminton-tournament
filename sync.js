@@ -96,6 +96,22 @@
 
     publish(id, data) { if (backend) backend.publish(String(id), data); },
     remove(id) { if (backend && backend.remove) backend.remove(String(id)); },
+
+    // 指定 room のスコアを完全削除（ローカル＋クラウド）。Promiseを返す。
+    // ルールはコート単位の書き込みのみ許可のため、matches を読んで各コートを個別に削除する。
+    purgeRoom(roomName) {
+      const r = sanitizeRoom(roomName);
+      try { localStorage.removeItem("bdmt:" + r + ":matches"); } catch (_) {}
+      const F = window.__FB__;
+      if (F && F.get) {
+        const base = F.ref(F.db, "rooms/" + r + "/matches");
+        return F.get(base).then(snap => {
+          const val = snap.val() || {};
+          return Promise.all(Object.keys(val).map(k => F.remove(F.ref(F.db, "rooms/" + r + "/matches/" + k))));
+        });
+      }
+      return Promise.resolve();
+    },
     subscribe(cb) {
       subscribers.push(cb);
       cb(store);

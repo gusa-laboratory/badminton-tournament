@@ -17,6 +17,7 @@ async function boot() {
         db: dbMod.getDatabase(app),
         ref: dbMod.ref,
         onValue: dbMod.onValue,
+        get: dbMod.get,
         set: dbMod.set,
         remove: dbMod.remove
       };
