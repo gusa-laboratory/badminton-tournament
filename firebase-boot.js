@@ -24,7 +24,9 @@ async function boot() {
       console.warn("Firebase の読み込みに失敗。ローカル同期にフォールバックします。", e);
     }
   }
-  window.CourtSync.init();
+  // 初期化(init)は各ページが room/backend を決めてから行う。
+  // ここでは SDK 準備完了だけを知らせる。
+  window.CourtSync._markBooted();
   window.dispatchEvent(new Event("sync-ready"));
 }
 

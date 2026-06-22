@@ -56,20 +56,55 @@
   .past span{background:#11202e; padding:1px 7px; border-radius:6px; font-size:11px;}
   .upd{white-space:nowrap;}
   .upd.stale{color:#d98b8b;}
+
+  /* home (大会の選択) */
+  #home{max-width:480px; margin:30px auto 0;}
+  #home h1{font-size:24px; margin:0 0 10px;}
+  #home .lead{color:var(--muted); font-size:13px; line-height:1.7; margin:0 0 18px;}
+  .homecard{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 16px;}
+  .homecard label{display:block; font-size:13px; color:var(--muted); font-weight:600; margin:4px 0 6px;}
+  .homecard input{width:100%; padding:12px 14px; border:2px solid var(--line); background:var(--panel2); color:var(--txt); border-radius:12px; font-size:16px; margin-bottom:12px;}
+  .homecard input:focus{outline:none; border-color:var(--accent);}
+  #openBtn{width:100%; padding:14px; border:none; border-radius:12px; font-size:16px; font-weight:700; background:var(--ok); color:#fff; cursor:pointer;}
+  #recents{margin-top:22px;}
+  #recents h3{font-size:13px; color:var(--muted); margin:0 0 8px;}
+  .recent{display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer;}
+  .recent:hover{border-color:var(--accent);}
+  .recent .rn{font-weight:700;} .recent .rr{font-size:12px; color:var(--muted);}
+  #switchBtn{background:#37485c; border:none; color:#fff; border-radius:9px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer; margin-left:auto;}
+  .warn{color:#ef9a9a; font-size:12px; margin:10px 0 0; line-height:1.5;}
 </style>
 </head>
 <body>
-  <header>
+  <!-- HOME（大会の選択） -->
+  <div id="home">
     <h1>🏸 本部ダッシュボード</h1>
-    <span class="room" id="room"></span>
-  </header>
-  <div class="bar">
-    <span class="mode" id="syncMode"></span>
-    <span class="count" id="count">0 コート</span>
-    <span id="hint"></span>
+    <p class="lead">大会名と合言葉を設定して、この大会のダッシュボードを開きます。<br>合言葉は各コート端末（大会用）と同じものにしてください。</p>
+    <div class="homecard">
+      <label>大会名</label>
+      <input type="text" id="inName" placeholder="例：春季大会 2026">
+      <label>合言葉（room）</label>
+      <input type="text" id="inRoom" placeholder="例：ojg-spring-2026">
+      <button id="openBtn">この大会を開く</button>
+      <p class="warn hidden" id="fbWarn">※ Firebase未設定のため、ローカル同期（同一ブラウザのタブ間）で動作します。</p>
+    </div>
+    <div id="recents"></div>
   </div>
 
-  <div class="grid" id="grid"></div>
+  <!-- DASHBOARD -->
+  <div id="dash" class="hidden">
+    <header>
+      <h1>🏸 <span id="dashName">本部</span></h1>
+      <span class="room" id="room"></span>
+      <button id="switchBtn">別の大会へ</button>
+    </header>
+    <div class="bar">
+      <span class="mode" id="syncMode"></span>
+      <span class="count" id="count">0 コート</span>
+      <span id="hint"></span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
 
 <script src="firebase-config.js"></script>
 <script src="sync.js"></script>
@@ -165,15 +200,68 @@ function render(){
   $('grid').innerHTML = ids.map(id=>card(current[id])).join('');
 }
 
-/* --- 同期購読（接続準備ができてから） --- */
-window.addEventListener('sync-ready', ()=>{
-  $('room').textContent = 'room: ' + CourtSync.room;
-  $('syncMode').textContent = CourtSync.mode==='firebase' ? 'Firebase 同期' : 'ローカル同期';
-  $('hint').textContent = CourtSync.mode==='firebase'
-    ? ''
-    : '※ いまは同一ブラウザ内のタブ間で同期するデモモードです。';
-  CourtSync.subscribe(store=>{ current = store || {}; render(); });
-});
+/* --- 最近の大会（localStorage） --- */
+const RECENTS_KEY = 'bdmt:hq:recents';
+function loadRecents(){ try{ return JSON.parse(localStorage.getItem(RECENTS_KEY)||'[]'); }catch(e){ return []; } }
+function saveRecent(name, room){
+  let r = loadRecents().filter(x=>x.room!==room);
+  r.unshift({name:name||'', room});
+  localStorage.setItem(RECENTS_KEY, JSON.stringify(r.slice(0,6)));
+}
+function renderRecents(){
+  const r = loadRecents();
+  if(!r.length){ $('recents').innerHTML=''; return; }
+  $('recents').innerHTML = '<h3>最近の大会</h3>' + r.map(x=>
+    `<div class="recent" data-room="${encodeURIComponent(x.room)}" data-name="${encodeURIComponent(x.name||'')}">
+       <span class="rn">${esc(x.name||x.room)}</span><span class="rr">${esc(x.room)}</span>
+     </div>`).join('');
+  document.querySelectorAll('.recent').forEach(el=>{
+    el.onclick=()=>openDashboard(decodeURIComponent(el.dataset.room), decodeURIComponent(el.dataset.name));
+  });
+}
+
+/* --- ルーティング --- */
+function openDashboard(room, name){
+  const r = CourtSync.sanitizeRoom(room);
+  location.search = '?room=' + encodeURIComponent(r) + (name ? '&name=' + encodeURIComponent(name) : '');
+}
+function startDash(room, name){
+  $('home').classList.add('hidden');
+  $('dash').classList.remove('hidden');
+  $('dashName').textContent = name || room;
+  document.title = (name || room) + '｜本部ダッシュボード';
+  CourtSync.whenReady(()=>{
+    CourtSync.init({ room, backend:'auto' });
+    $('room').textContent = 'room: ' + CourtSync.room;
+    $('syncMode').textContent = CourtSync.mode==='firebase' ? 'Firebase 同期' : 'ローカル同期';
+    $('hint').textContent = CourtSync.mode==='firebase' ? '' : '※ ローカル同期（同一ブラウザのタブ間）で動作中。';
+    CourtSync.subscribe(store=>{ current = store || {}; render(); });
+  });
+}
+function showHome(){
+  $('dash').classList.add('hidden');
+  $('home').classList.remove('hidden');
+  renderRecents();
+  CourtSync.whenReady(()=>{ if(!CourtSync.isFirebaseAvailable()) $('fbWarn').classList.remove('hidden'); });
+}
+
+const params = new URLSearchParams(location.search);
+const urlRoom = params.get('room');
+const urlName = params.get('name') || '';
+if(urlRoom){
+  const r = CourtSync.sanitizeRoom(urlRoom);
+  if(urlName) saveRecent(urlName, r);
+  startDash(r, urlName);
+} else {
+  showHome();
+}
+
+$('openBtn').onclick=()=>{
+  const room=$('inRoom').value.trim();
+  if(!room){ $('inRoom').focus(); return; }
+  openDashboard(room, $('inName').value.trim());
+};
+$('switchBtn').onclick=()=>{ location.href = location.pathname; };
 setInterval(render, 1000);   // 「更新○秒前」を毎秒更新
 </script>
 <script type="module" src="firebase-boot.js"></script>
