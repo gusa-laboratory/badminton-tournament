@@ -768,8 +768,8 @@ $('menuBtn').onclick=showMenu;
 $('goTourney').onclick=enterTournament;
 $('goPractice').onclick=enterPractice;
 $('backHome').onclick=()=>location.reload();
-// Firebase未設定なら大会用カードに注意を出す
-CourtSync.whenReady(()=>{ if(!CourtSync.isFirebaseAvailable()) $('fbWarn').classList.remove('hidden'); });
+// Firebase設定そのものが無いときだけ注意を出す（接続可否はSDK読込タイミングに依存するため判定に使わない）
+if(!window.FIREBASE_CONFIG) $('fbWarn').classList.remove('hidden');
 
 toggleDoublesFields();
 </script>

@@ -234,7 +234,8 @@ function startDash(room, name){
     CourtSync.init({ room, backend:'auto' });
     $('room').textContent = 'room: ' + CourtSync.room;
     $('syncMode').textContent = CourtSync.mode==='firebase' ? 'Firebase 同期' : 'ローカル同期';
-    $('hint').textContent = CourtSync.mode==='firebase' ? '' : '※ ローカル同期（同一ブラウザのタブ間）で動作中。';
+    $('hint').textContent = CourtSync.mode==='firebase' ? ''
+      : (window.FIREBASE_CONFIG ? '⚠ Firebaseに接続できませんでした。この端末内のローカル動作です。' : '※ ローカル同期（同一ブラウザのタブ間）で動作中。');
     CourtSync.subscribe(store=>{ current = store || {}; render(); });
   });
 }
@@ -242,7 +243,8 @@ function showHome(){
   $('dash').classList.add('hidden');
   $('home').classList.remove('hidden');
   renderRecents();
-  CourtSync.whenReady(()=>{ if(!CourtSync.isFirebaseAvailable()) $('fbWarn').classList.remove('hidden'); });
+  // Firebase設定そのものが無いときだけ注意を出す（接続可否はダッシュボードの表示で示す）
+  if(!window.FIREBASE_CONFIG) $('fbWarn').classList.remove('hidden');
 }
 
 const params = new URLSearchParams(location.search);
