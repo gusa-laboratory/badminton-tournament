@@ -60,20 +60,14 @@
   .note{font-size:12px; color:var(--muted); line-height:1.6; margin-top:6px;}
   .tourney{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 
-  /* ---------- home (mode select) ---------- */
-  #home{height:100vh; height:100dvh; overflow-y:auto; padding:24px 18px 60px; max-width:520px; margin:0 auto;}
-  #home h1{font-size:22px; text-align:center; margin:6px 0 4px;}
-  #home .sub{text-align:center; color:var(--muted); font-size:13px; margin-bottom:22px;}
-  .modecard{border:2px solid var(--line); border-radius:16px; padding:18px 16px; margin-bottom:16px; background:var(--panel);}
-  .modecard.tourney-card{border-color:var(--accent);}
-  .modecard h2{margin:0 0 6px; font-size:18px;}
-  .modecard.tourney-card h2{color:var(--accent);}
-  .modecard p{color:var(--muted); font-size:13px; line-height:1.6; margin:0 0 12px;}
-  .modecard input{margin-bottom:10px;}
-  .homebtn{width:100%; padding:15px; border:none; border-radius:12px; font-size:17px; font-weight:700; color:#fff;}
+  /* ---------- home / tourney-info ---------- */
+  #home, #tinfo{height:100vh; height:100dvh; overflow-y:auto; padding:24px 18px 60px; max-width:520px; margin:0 auto;}
+  #home h1, #tinfo h1{font-size:22px; text-align:center; margin:6px 0 4px;}
+  #home .sub, #tinfo .sub{text-align:center; color:var(--muted); font-size:13px; margin-bottom:22px;}
+  .homeChoices{display:flex; flex-direction:column; gap:12px; margin-top:18px;}
+  .homebtn{width:100%; padding:18px; border:none; border-radius:14px; font-size:18px; font-weight:700; color:#fff;}
   .homebtn.go{background:var(--ok);} .homebtn.sub{background:#37485c;}
-  .warn{color:#ef9a9a; font-size:12px; margin:8px 0 0; line-height:1.5;}
-  #backHome{background:none; border:none; color:var(--muted); font-size:13px; padding:4px 0; cursor:pointer; text-decoration:underline;}
+  .backbtn{background:none; border:none; color:var(--muted); font-size:13px; padding:4px 0; cursor:pointer; text-decoration:underline; display:block; margin-bottom:4px;}
 
   /* ---------- match ---------- */
   #match{height:100vh; height:100dvh; display:flex; flex-direction:column;}
@@ -178,32 +172,40 @@
 <div id="home">
   <h1>🏸 バドミントン得点カウンター</h1>
   <div class="sub">大阪女学院 バドミントン部</div>
-
-  <div class="modecard tourney-card">
-    <h2>🏆 大会用</h2>
-    <p>本部ダッシュボードに試合状況を送信します。合言葉は本部と同じにしてください。</p>
-    <input type="text" id="homeRoom" placeholder="大会の合言葉（例：ojg-spring-2026）">
-    <input type="text" id="homeCourt" placeholder="コート番号（例：1）" inputmode="numeric">
-    <button id="goTourney" class="homebtn go">大会用ではじめる</button>
+  <div class="homeChoices">
+    <button id="goTourney" class="homebtn go">🏆 大会用ではじめる</button>
+    <button id="goPractice" class="homebtn sub">🏸 練習ではじめる</button>
   </div>
-
-  <div class="modecard practice-card">
-    <h2>🏸 練習用</h2>
-    <p>この端末だけで動く得点カウンター。本部への送信はしません。</p>
-    <button id="goPractice" class="homebtn sub">練習用ではじめる</button>
-  </div>
+  <p class="note" style="text-align:center; margin-top:14px;">大会用＝本部に試合状況を送信／練習用＝この端末だけ（送信なし）</p>
 </div>
 
-<!-- ============ SETUP ============ -->
-<div id="setup" class="hidden">
-  <button id="backHome">← モード選択に戻る</button>
-  <h1 id="setupTitle">🏸 試合設定</h1>
-  <div class="sub" id="setupSub"></div>
+<!-- ============ TOURNEY INFO (大会用) ============ -->
+<div id="tinfo" class="hidden">
+  <button class="backbtn" id="tinfoBack">← 戻る</button>
+  <h1>🏆 大会情報</h1>
+  <div class="sub">本部と同じ「合言葉」を入れてください</div>
 
-  <div class="field hidden" id="matchNoField">
-    <label>試合番号（大会用）</label>
+  <div class="field">
+    <label>合言葉</label>
+    <input type="text" id="homeRoom" placeholder="例：ojg-spring-2026">
+  </div>
+  <div class="field">
+    <label>コート番号</label>
+    <input type="text" id="homeCourt" placeholder="例：1" inputmode="numeric">
+  </div>
+  <div class="field">
+    <label>試合番号</label>
     <input type="text" id="matchNo" placeholder="例：女子D-12">
   </div>
+
+  <button id="tinfoNext" class="homebtn go">次へ（選手設定）</button>
+</div>
+
+<!-- ============ SETUP (player/match) ============ -->
+<div id="setup" class="hidden">
+  <button class="backbtn" id="setupBack">← 戻る</button>
+  <h1 id="setupTitle">🏸 試合設定</h1>
+  <div class="sub" id="setupSub"></div>
 
   <div class="field">
     <label>得点方式</label>
@@ -334,28 +336,40 @@ let appMode = 'tournament';   // 'tournament' | 'practice'
 let appRoom = '';
 let syncEnabled = false;
 
-/* ---------- home (mode select) ---------- */
-function enterTournament(){
+/* ---------- home → 大会情報 → 選手設定 の遷移 ---------- */
+function goTournament(){               // home → 大会情報
+  $('home').classList.add('hidden');
+  $('tinfo').classList.remove('hidden');
+}
+function tinfoBack(){                   // 大会情報 → home
+  $('tinfo').classList.add('hidden');
+  $('home').classList.remove('hidden');
+}
+function tourneyNext(){                 // 大会情報 → 選手設定
   const r = $('homeRoom').value.trim();
   if(!r){ $('homeRoom').focus(); return; }
   appMode = 'tournament';
   appRoom = CourtSync.sanitizeRoom(r);
   tourney.courtNo = $('homeCourt').value.trim();
+  tourney.matchNo = $('matchNo').value.trim();
   CourtSync.whenReady(()=>{ CourtSync.init({ room:appRoom, backend:'firebase' }); });
-  $('matchNoField').classList.remove('hidden');
   $('setupSub').textContent = tourney.courtNo
-    ? `大会「${appRoom}」／ コート${tourney.courtNo}`
+    ? `大会「${appRoom}」／ コート${tourney.courtNo}` + (tourney.matchNo ? ` ／ ${tourney.matchNo}` : '')
     : `大会「${appRoom}」（コート番号なし＝本部に送信されません）`;
-  $('home').classList.add('hidden');
+  $('tinfo').classList.add('hidden');
   $('setup').classList.remove('hidden');
 }
-function enterPractice(){
+function enterPractice(){              // home → 選手設定（練習）
   appMode = 'practice';
   syncEnabled = false;
-  $('matchNoField').classList.add('hidden');
   $('setupSub').textContent = '練習モード（この端末だけ・本部送信なし）';
   $('home').classList.add('hidden');
   $('setup').classList.remove('hidden');
+}
+function setupBack(){                  // 選手設定 → 戻る
+  $('setup').classList.add('hidden');
+  if(appMode==='tournament') $('tinfo').classList.remove('hidden');
+  else $('home').classList.remove('hidden');
 }
 
 function wireSeg(id, key, cast){
@@ -414,7 +428,6 @@ function deuceFrom(){ return cfg.mode===15 ? 14 : 20; }// 2-point-lead zone star
 function intervalAt(){ return cfg.mode===15 ? 8 : 11; }// interval / final-game end-change threshold
 
 function startMatch(){
-  tourney.matchNo = $('matchNo').value.trim();
   syncEnabled = (appMode==='tournament') && !!tourney.courtNo;
   const affil  = [ $('aAffil').value.trim(), $('bAffil').value.trim() ];
   const names  = [ $('aName').value.trim(),  $('bName').value.trim()  ];   // singles player name
@@ -763,10 +776,12 @@ $('sideB').onclick=()=>addPoint(1);
 $('undoBtn').onclick=undo;
 $('menuBtn').onclick=showMenu;
 
-// home (mode select)
-$('goTourney').onclick=enterTournament;
+// home / 大会情報 / 選手設定 の遷移
+$('goTourney').onclick=goTournament;
 $('goPractice').onclick=enterPractice;
-$('backHome').onclick=()=>location.reload();
+$('tinfoNext').onclick=tourneyNext;
+$('tinfoBack').onclick=tinfoBack;
+$('setupBack').onclick=setupBack;
 
 toggleDoublesFields();
 </script>
