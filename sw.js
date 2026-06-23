@@ -2,7 +2,7 @@
    ★アプリ（court.html / hq.html / sync.js など）を更新したら、下の CACHE の
      バージョン番号を必ず上げること（v1→v2…）。上げ忘れると利用者端末に古い版が
      キャッシュされたまま残る。 */
-const CACHE = 'bdmt-tourney-v1';
+const CACHE = 'bdmt-tourney-v2';
 
 const ASSETS = [
   './court.html', './hq.html',

@@ -646,8 +646,9 @@ function render(){
   }
 
   // set (game) counter — center scoreboard
-  $('setA').textContent=S.gamesWon[0];
-  $('setB').textContent=S.gamesWon[1];
+  // エンド交替で左右が入れ替わったら、中央のゲームカウントも左右を合わせる
+  $('setA').textContent=S.gamesWon[S.sideSwapped?1:0];
+  $('setB').textContent=S.gamesWon[S.sideSwapped?0:1];
 
   // game point / match point badges
   for(const [side,el] of [[0,'ptA'],[1,'ptB']]){
@@ -677,7 +678,7 @@ function render(){
       txt.innerHTML=label;
     } else { badge.classList.remove('show'); }
   }
-  $('vsdot').textContent = `${headline(0)}  vs  ${headline(1)}`;
+  $('vsdot').textContent = S.sideSwapped ? `${headline(1)}  vs  ${headline(0)}` : `${headline(0)}  vs  ${headline(1)}`;
   $('court').classList.toggle('swapped', !!S.sideSwapped);
   $('undoBtn').disabled = hist.length===0;
 
